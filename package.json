@@ -1,0 +1,22 @@
+{
+  "name": "msc_mdw",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node app.js"
+  },
+  "keywords": [],
+  "author": "MSC",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "axios": "^1.6.2",
+    "basic-ftp": "^5.0.5",
+    "bcrypt": "^5.1.1",
+    "express": "^4.18.2",
+    "multer": "^1.4.5-lts.1",
+    "ssh2": "^1.14.0",
+    "ssh2-sftp-client": "^9.1.0"
+  }
+}
