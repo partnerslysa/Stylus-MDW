@@ -5,168 +5,66 @@ const { Client } = require('ssh2');
 const concatStream = require('concat-stream');
 const { error } = require('console');
 const ftp = require("basic-ftp");
+const zlib = require('zlib');
 const app = express();
 const port = 3000;
 
+// try {
+
+//   if (!isEmpty(host)) {
+
+//     if (!isEmpty(username)) {
+
+//       if (!isEmpty(password)) {
+
+//         if (!isEmpty(filesToMove) && filesToMove.length > 0) {
+//         }
+//         else {
+//           res.status(400).json({
+//             error: true,
+//             message: `Informacion de archivos incorrecta o incompleta`,
+//             results: []
+//           });
+//         }
+//       }
+//       else {
+//         res.status(400).json({
+//           error: true,
+//           message: `Contraseña invalida o vacia`,
+//           results: []
+//         });
+//       }
+//     }
+//     else {
+//       res.status(400).json({
+//         error: true,
+//         message: `Usuario invalido o vacio`,
+//         results: []
+//       });
+//     }
+//   }
+//   else {
+//     res.status(400).json({
+//       error: true,
+//       message: `URL de host invalida o vacio`,
+//       results: []
+//     });
+//   }
+// }
+// catch (er) {
+//   res.status(500).json({
+//     error: true,
+//     message: `Excepción general en servicio moveFiles: ${JSON.stringify(er)}`,
+//     results: []
+//   });
+// }
+
+
 app.use(bodyParser.json());
 
-//SERVICIO DE CARGA DE ARCHIVO EN SERVIDOR SFTP
-app.post('/uploadFile2', async (req, res) => {
-
-  const fileName = req[`body`][`fileName`];
-  const fileUrl = req[`body`][`fileUrl`];
-  const host = req[`body`][`host`];
-  const port = req[`body`][`port`];
-  const username = req[`body`][`username`];
-  const password = req[`body`][`password`];
-  const remotePath2 = req[`body`][`remotePath`];
-  const respuesta = await axios.get(fileUrl);
-
-  console.log(`24. fileName: ${fileName} - fileUrl: ${fileUrl} - host: ${host} - port: ${port} - username: ${username} - password: ${password} - remotePath: ${remotePath2}\n`);
-
-  const sftpConfig = {
-    host: host,
-    port: port,
-    username: username,
-    password: password,
-    algorithms: {
-      kex: [
-        "diffie-hellman-group1-sha1",
-        "ecdh-sha2-nistp256",
-        "ecdh-sha2-nistp384",
-        "ecdh-sha2-nistp521",
-        "diffie-hellman-group-exchange-sha256",
-        "diffie-hellman-group14-sha1"
-      ],
-      cipher: [
-        "3des-cbc",
-        "aes128-ctr",
-        "aes192-ctr",
-        "aes256-ctr",
-        "aes128-gcm",
-        "aes128-gcm@openssh.com",
-        "aes256-gcm",
-        "aes256-gcm@openssh.com"
-      ],
-      serverHostKey: [
-        "ssh-rsa",
-        "ecdsa-sha2-nistp256",
-        "ecdsa-sha2-nistp384",
-        "ecdsa-sha2-nistp521"
-      ],
-      hmac: [
-        "hmac-sha2-256",
-        "hmac-sha2-512",
-        "hmac-sha1"
-      ]
-    }
-  };
-
-  const conn = new Client();
-
-  try 
-  {
-    await conn.connect(sftpConfig);
-
-    conn.on('ready', () => {
-      console.log(`71. Host: ${host} - Conexión SFTP ready`);
-
-      //Armado de rutas
-      const localPath = `ArchivosTXT/${fileName}`;
-      const remotePath = `${remotePath2}${fileName}`;
-
-      //Se genera archivo TXT en carpeta del proyecto
-      require('fs').writeFileSync(localPath, respuesta.data, 'utf-8');
-
-      console.log(`80. Host: ${host} - localPath: ${localPath} - remotePath: ${remotePath}\n`);
-      
-      conn.sftp((err, sftp) => {
-        if (err)
-        {
-          let message = `Host: ${host} - Error al establecer la conexión SFTP. Detalle: ${err}`;
-          console.error(message);
-          
-          res.status(500).json({
-            error: true,
-            message: message,
-            fileName: fileName,
-            fileContent: null
-          });
-
-          return;
-        }
-
-        const readStream = require('fs').createReadStream(localPath);
-
-        //Se crea archivo en servidor sftp
-        const writeStream = sftp.createWriteStream(remotePath);
-        readStream.pipe(writeStream);
-
-        writeStream.on(`close`, () => {
-          let message =  `Host: ${host} - Directorio : ${remotePath} - Nombre archivo: ${fileName} - Archivo cargado exitosamente`;
-          console.log(message);
-          
-          res.status(200).json({
-            error: false,
-            message: message,
-            fileName: fileName,
-            fileContent: null
-          });
-
-          sftp.end();
-          conn.end();
-          return;
-        });
-
-        writeStream.on(`error`, (uploadError) => {
-          let message =  `Host: ${host} - Directorio : ${remotePath} - Nombre archivo: ${fileName} - Archivo no pude ser cargado. Detalles: ${uploadError.message}`;
-          res.status(500).json({
-            error: true,
-            message: message,
-            fileName: fileName,
-            fileContent: null
-          });
-
-          sftp.end();
-          conn.end();
-          return;
-        });
-      });
-    });
-
-    conn.on(`error`, (err) => {
-      
-      let message = `Host: ${host} - Conexión SFTP error - servicio uploadFile`;
-
-      console.log(message);
-
-      res.status(500).json({
-        error: true,
-        message: message,
-        fileName: fileName,
-        fileContent: null
-      });
-
-      return;
-    });
-  }
-  catch (connectError)
-  {
-    let message = `Excepción genereal en servicio uploadFile`;
-    res.status(500).json({
-      error: true,
-      message: message,
-      fileName: fileName,
-      fileContent: null
-    });
-
-    return;
-  }
-
-});
-
+//SERVICIO DE CARGA DE ARCHIVOS EN SERVIDOR SFPT
 app.post('/uploadFile', async (req, res) => {
-
+  const serviceName = `uploadFile`;
   const fileName = req[`body`][`fileName`];
   const fileUrl = req[`body`][`fileUrl`];
   const host = req[`body`][`host`];
@@ -176,267 +74,365 @@ app.post('/uploadFile', async (req, res) => {
   const remotePath2 = req[`body`][`remotePath`];
   const respuesta = await axios.get(fileUrl);
 
-  console.log(`24. fileName: ${fileName} - fileUrl: ${fileUrl} - host: ${host} - port: ${port} - username: ${username} - password: ${password} - remotePath: ${remotePath2}\n`);
+  console.log(`77. Service: ${serviceName} | Request Body: ${JSON.stringify(req.body)}`);
 
-  const client = new ftp.Client();
-    client.ftp.verbose = false;
+  if (!isEmpty(host)) {
 
-  try
-  {
-    await client.access({
-      host: host,
-      user: username,
-      password: password,
-      port: port,
-      secure: true
-    });
+    if (!isEmpty(username)) {
 
-    // Cambiar a la carpeta deseada (crear si es necesario)
-    await client.ensureDir(remotePath2);
+      if (!isEmpty(password)) {
 
-    //conn.on('ready', () => {
-      console.log(`71. Host: ${host} - Conexión SFTP ready`);
+        if (!isEmpty(fileName)) {
 
-      //Armado de rutas
-      const localPath = `ArchivosTXT/${fileName}`;
-      const remotePath = `${remotePath2}${fileName}`;
-      require('fs').writeFileSync(localPath, respuesta.data, 'utf-8');
-      console.log(`80. Host: ${host} - localPath: ${localPath} - remotePath: ${remotePath}\n`);
-      await client.uploadFrom(localPath, remotePath);
-      await client.close();
+          if (!isEmpty(fileUrl)) {
 
-      console.log(`80. Host: ${host} - localPath: ${localPath} - remotePath: ${remotePath}\n`);
-      let message =  `Host: ${host} - Directorio : ${remotePath} - Nombre archivo: ${fileName} - Archivo cargado exitosamente`;
-      return res.status(200).json({ 
-        error: false,
-        message: message,
-        fileName: fileName,
-        fileContent: null
+            if (!isEmpty(remotePath2)) {
+
+              const client = new ftp.Client();
+              client.ftp.verbose = false;
+
+              try {
+                await client.access({
+                  host: host,
+                  user: username,
+                  password: password,
+                  port: port,
+                  secure: true
+                });
+
+                // Cambiar a la carpeta deseada (crear si es necesario)
+                await client.ensureDir(remotePath2);
+                console.log(`95. Host: ${host} - Conexión SFTP ready`);
+
+                //Armado de rutas
+                const localPath = `ArchivosTXT/${fileName}`;
+                const remotePath = `${remotePath2}${fileName}`;
+                require('fs').writeFileSync(localPath, respuesta.data, 'utf-8');
+                console.log(`101. Host: ${host} - localPath: ${localPath} - remotePath: ${remotePath}\n`);
+                await client.uploadFrom(localPath, remotePath);
+                await client.close();
+
+                console.log(`105. Host: ${host} - localPath: ${localPath} - remotePath: ${remotePath}\n`);
+                let message = `Host: ${host} - Directorio : ${remotePath} - Nombre archivo: ${fileName} - Archivo cargado exitosamente`;
+                return res.status(200).json({
+                  error: false,
+                  message: message,
+                  fileName: fileName
+                });
+
+              }
+              catch (err) {
+                console.error("Error FTPS:", err.message);
+                return res.status(500).json({
+                  error: "Error al subir archivo",
+                  message: err.message,
+                  fileName: fileName
+                });
+              }
+            }
+            else {
+              res.status(400).json({
+                error: true,
+                message: `Ruta de archivo invalida o vacia`,
+                fileName: fileName
+              });
+            }
+          }
+          else {
+            res.status(400).json({
+              error: true,
+              message: `URL de archivo invalida o vacia`,
+              fileName: fileName
+            });
+          }
+        }
+        else {
+          res.status(400).json({
+            error: true,
+            message: `Nombre de archivo invalido o vacio`,
+            fileName: fileName
+          });
+        }
+      }
+      else {
+        res.status(400).json({
+          error: true,
+          message: `Contraseña invalida o vacia`,
+          fileName: fileName
+        });
+      }
+    }
+    else {
+      res.status(400).json({
+        error: true,
+        message: `Usuario invalido o vacio`,
+        fileName: fileName
       });
-      
+    }
   }
-  catch (err)
-  {
-    /*let message = `Excepción genereal en servicio uploadFile`;
-    res.status(500).json({
+  else {
+    res.status(400).json({
       error: true,
-      message: message,
-      fileName: fileName,
-      fileContent: null
+      message: `URL de host invalida o vacio`,
+      fileName: fileName
     });
-
-    return;*/
-    console.error("❌ Error FTPS:", err.message);
-        return res.status(500).json({ error: "Error al subir archivo", details: err.message });
   }
-
 });
 
 //SERVICIO DE BUSQUEDA DE ARCHIVOS EN SERVIDOR SFPT
 app.post('/searchFile', async (req, res) => {
+  const serviceName = `searchFile`;
+  const host = req.body.host;
+  const port = req.body.port;
+  const username = req.body.username;
+  const password = req.body.password;
+  const filePath = req.body.filePath;
 
-  const fileName = req[`body`][`fileName`];
-  const host = req[`body`][`host`];
-  const port = req[`body`][`port`];
-  const username = req[`body`][`username`];
-  const remotePath = req[`body`][`remotePath`];
-  const password = req[`body`][`password`];
+  const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
+  console.log(`141. Servicio: ${serviceName} | Request Body: ${JSON.stringify(req.body)}`);
 
-  console.log(`177. fileName: ${fileName} - host: ${host} - port: ${port} - username: ${username} - password: ${password} - remotePath: ${remotePath}\n`);
-  
-  const sftpConfig = {
-    host: host,
-    port: port,
-    username: username,
-    password: password,
-    algorithms: {
-      kex: [
-        "diffie-hellman-group1-sha1",
-        "ecdh-sha2-nistp256",
-        "ecdh-sha2-nistp384",
-        "ecdh-sha2-nistp521",
-        "diffie-hellman-group-exchange-sha256",
-        "diffie-hellman-group14-sha1"
-      ],
-      cipher: [
-        "3des-cbc",
-        "aes128-ctr",
-        "aes192-ctr",
-        "aes256-ctr",
-        "aes128-gcm",
-        "aes128-gcm@openssh.com",
-        "aes256-gcm",
-        "aes256-gcm@openssh.com"
-      ],
-      serverHostKey: [
-        "ssh-rsa",
-        "ecdsa-sha2-nistp256",
-        "ecdsa-sha2-nistp384",
-        "ecdsa-sha2-nistp521"
-      ],
-      hmac: [
-        "hmac-sha2-256",
-        "hmac-sha2-512",
-        "hmac-sha1"
-      ]
-    }
-  };
+  try {
 
-  const conn = new Client();
+    if (!isEmpty(host)) {
 
-  try
-  {
-    await conn.connect(sftpConfig);
+      if (!isEmpty(username)) {
 
-    conn.on(`ready`, () => {
-      
-      console.log(`225. Host: ${host} - Conexión SFTP ready`);
+        if (!isEmpty(password)) {
 
-      conn.sftp((err, sftp) => {
-        if (err)
-        {
-          let message = `Host: ${host} - Error al establecer la conexión SFTP. Detalle: ${err}`;
-          console.error(message);
-          
-          res.status(500).json({
-            error: true,
-            message: message,
-            fileName: fileName,
-            fileContent: null
-          });
+          if (!isEmpty(filePath) && filePath.length > 0) {
 
-          return;
-        }
-  
-        //Obtener lista de archivos en el directorio remoto
-        sftp.readdir(remotePath, (readdirErr, listaArchivos) => {
-          if (readdirErr)
-          {
-            let message = `Host: ${host} - Directorio: ${remotePath} - Error al leer el directorio remoto. Detalle: ${err}`;
-            console.error(message);
+            const client = new ftp.Client();
+            client.ftp.verbose = false;
 
-            res.status(500).json({
-              error: true,
-              message: message,
-              fileName: fileName,
-              fileContent: null
+            await client.access({
+              host: host,
+              user: username,
+              password: password,
+              port: port,
+              secure: true
             });
 
-            sftp.end();
-            conn.end();
-            return;
-          }
-          
-          const nombresArchivos = listaArchivos.map((archivo) => archivo.filename);
-          console.log(`263. Host: ${host} - Directorio: ${remotePath} - Nombres de archivos encontrados: ${nombresArchivos}`);
+            // Verificar tamaño
+            const fileSize = await client.size(filePath);
+            console.log(`166. Servicio: ${serviceName} | Tamaño de archivo solicitado: ${fileSize}`);
+            let fileSizeMb = parseFloat((fileSize / (1024 * 1024)).toFixed(2));
 
-          //Busqueda de archivo especifico
-          const archivoEncontrado = listaArchivos.find((archivo) => archivo.filename === fileName);
-  
-          if (archivoEncontrado)
-          {
-            console.log(`270. Host: ${host} - Directorio: ${remotePath} - Nombre archivo: ${fileName} - Archivo encontrado`);
-
-            //Extracción de contenido del archivo
-            const readStream = sftp.createReadStream(`${remotePath}/${fileName}`);
-
-            readStream.on('error', (error) => {
-              console.error(`Error al leer el archivo ${fileName}: ${error.message}`);
-              // Manejo del error
-           });
-
-           readStream.on('open', () => {
-            console.log(`Comenzando a leer el archivo ${fileName}.`);
-            // Acciones al abrir el archivo para lectura
-              readStream.pipe(concatStream((contenido) =>
-              {
-                console.log(`277. Host: ${host} - Directorio: ${remotePath} - Nombre archivo: ${fileName} - Contenido: ${contenido.toString()}`);
-                let message = `Host: ${host} - Directorio: ${remotePath} - Nombre archivo: ${fileName} - Archivo encontrado`;
-
-                res.status(200).json({
-                  error: false,
-                  message: message,
-                  fileName: fileName,
-                  fileContent: contenido.toString()
-                });
-
-                sftp.end();
-                conn.end();            
-                readStream.close();
-                return;
-              }));
-            });
-
-          }
-          else
-          {
-            let message = `Host: ${host} - Directorio: ${remotePath} - Nombre archivo: ${fileName} - Archivo no encontrado`;
-
-              res.status(500).json({
+            if (fileSize > MAX_SIZE_BYTES) {
+              await client.close();
+              return res.status(400).json({
                 error: true,
-                message: message,
-                fileName: fileName,
-                fileContent: null
+                message: `El archivo excede el tamaño máximo permitido de 10MB (${fileSizeMb}MB)`
               });
+            }
 
-              sftp.end();
-              conn.end();
-              return;
+            // Leer contenido
+            const writableStream = new require('stream').Writable();
+            const chunks = [];
+            writableStream._write = (chunk, encoding, done) => {
+              chunks.push(chunk);
+              done();
+            };
+
+            await client.downloadTo(writableStream, filePath);
+            const contentBuffer = Buffer.concat(chunks);
+            //const compressed = zlib.gzipSync(contentBuffer);
+            const encodedFileContent = contentBuffer.toString('base64'); // listo para enviar por JSON
+
+            await client.close();
+            console.log(`190. Servicio: ${serviceName} | Ejecucion Exitosa`);
+
+            return res.json({
+              error: false,
+              message: `Servicio Ejecutado con Exito`,
+              path: filePath,
+              size: fileSizeMb,
+              size_string: `${fileSizeMb}MB`,
+              content: encodedFileContent
+            });
+
           }
-
+          else {
+            res.status(400).json({
+              error: true,
+              message: `Informacion de archivos incorrecta o incompleta`,
+              content: null
+            });
+          }
+        }
+        else {
+          res.status(400).json({
+            error: true,
+            message: `Contraseña invalida o vacia`,
+            content: null
+          });
+        }
+      }
+      else {
+        res.status(400).json({
+          error: true,
+          message: `Usuario invalido o vacio`,
+          content: null
         });
-
-      });
-
-    });
-
-    conn.on(`error`, (err) => {
-      
-      let message = `Host: ${host} - Conexión SFTP error - servicio searchFile`;
-
-      console.log(message);
-
-      res.status(500).json({
+      }
+    }
+    else {
+      res.status(400).json({
         error: true,
-        message: message,
-        fileName: fileName,
-        fileContent: null
+        message: `URL de host invalida o vacio`,
+        content: null
       });
-
-      return;
-    });
+    }
   }
-  catch(e)
-  {
-    let message = `Excepción genereal en servicio searchFile`;
+  catch (er) {
     res.status(500).json({
       error: true,
-      message: message,
-      fileName: fileName,
-      fileContent: null
+      message: `Excepción general en servicio moveFiles: ${JSON.stringify(er)}`,
+      content: null
     });
-
-    return;
   }
+});
 
+
+//SERVICIO DE BUSQUEDA Y MOVIMIENTO DE ARCHIVOS EN SERVIDOR SFPT
+app.post('/moveFiles', async (req, res) => {
+
+  const host = req.body.host;
+  const port = req.body.port;
+  const username = req.body.username;
+  const password = req.body.password;
+  const filesToMove = req.body.filesToMove; // Array de objetos { name, sourcePath, destinationPath }
+
+  console.log(`252. host: ${host} - port: ${port} - username: ${username} - password: ${password}\n`);
+  console.log(`253. Archivos a mover: ${JSON.stringify(filesToMove)}`);
+
+  try {
+
+    if (!isEmpty(host)) {
+
+      if (!isEmpty(username)) {
+
+        if (!isEmpty(password)) {
+
+          if (!isEmpty(filesToMove) && filesToMove.length > 0) {
+
+            const client = new ftp.Client();
+            client.ftp.verbose = false;
+
+            try {
+              await client.access({
+                host: host,
+                user: username,
+                password: password,
+                port: port,
+                secure: true
+              });
+
+              const resultados = [];
+
+              for (const file of filesToMove) {
+                const { name, sourcePath, destinationPath } = file;
+
+                const sourceFull = `${sourcePath.replace(/\/$/, '')}/${name}`;
+                const destinationFull = `${destinationPath.replace(/\/$/, '')}/${name}`;
+
+                try {
+                  // Verifica que el destino exista
+                  await client.cd(destinationPath);
+
+                  // Regresa al origen antes de mover (precaución si CD afecta contexto)
+                  await client.cd('/');
+                  await client.rename(sourceFull, destinationFull);
+
+                  resultados.push({
+                    file: name,
+                    from: sourcePath,
+                    to: destinationPath,
+                    moved: true
+                  });
+                } catch (err) {
+                  resultados.push({
+                    file: name,
+                    from: sourcePath,
+                    to: destinationPath,
+                    moved: false,
+                    error: err.message
+                  });
+                }
+              }
+
+              await client.close();
+
+              return res.json({
+                error: false,
+                message: `Servicio ejecutado con exito`,
+                results: resultados
+              });
+            }
+            catch (e) {
+              res.status(500).json({
+                error: true,
+                message: `Excepción general en servicio moveFiles: ${JSON.stringify(e)}`,
+                results: []
+              });
+            }
+          }
+          else {
+            res.status(400).json({
+              error: true,
+              message: `Informacion de archivos incorrecta o incompleta`,
+              results: []
+            });
+          }
+        }
+        else {
+          res.status(400).json({
+            error: true,
+            message: `Contraseña invalida o vacia`,
+            results: []
+          });
+        }
+      }
+      else {
+        res.status(400).json({
+          error: true,
+          message: `Usuario invalido o vacio`,
+          results: []
+        });
+      }
+    }
+    else {
+      res.status(400).json({
+        error: true,
+        message: `URL de host invalida o vacio`,
+        results: []
+      });
+    }
+  }
+  catch (er) {
+    res.status(500).json({
+      error: true,
+      message: `Excepción general en servicio moveFiles: ${JSON.stringify(e)}`,
+      results: []
+    });
+  }
 });
 
 //SERVICIO DE BUSQUEDA DE ARCHIVOS EN SERVIDOR SFPT
-app.post('/searchFiles', async (req, res) => {
+app.post('/deleteFiles', async (req, res) => {
 
-  const host = req[`body`][`host`];
-  const port = req[`body`][`port`];
-  const username = req[`body`][`username`];
-  const remotePath = req[`body`][`remotePath`];
-  const password = req[`body`][`password`];
+  const host = req.body.host;
+  const port = req.body.port;
+  const username = req.body.username;
+  const password = req.body.password;
+  const filesToDelete = req.body.filesToDelete; // Array de objetos { name, remotePath }
 
-  console.log(`177. host: ${host} - port: ${port} - username: ${username} - password: ${password} - remotePath: ${remotePath}\n`);
-  
+  console.log(`376. host: ${host} - port: ${port} - username: ${username} - password: ${password}\n`);
+  console.log(`377. Archivos a eliminar: ${JSON.stringify(filesToDelete)}`);
+
   const client = new ftp.Client();
-    client.ftp.verbose = false;
+  client.ftp.verbose = false;
 
-  try
-  {
+  try {
     await client.access({
       host: host,
       user: username,
@@ -445,233 +441,71 @@ app.post('/searchFiles', async (req, res) => {
       secure: true
     });
 
-    await client.cd(remotePath);
-    const files = await client.list();
+    const resultados = [];
+
+    for (const file of filesToDelete) {
+      const { name, remotePath } = file;
+
+      try {
+        await client.cd(remotePath);
+        await client.remove(name);
+        resultados.push({ file: name, remotePath: remotePath, deleted: true });
+      } catch (err) {
+        resultados.push({
+          file: name,
+          remotePath: remotePath,
+          deleted: false,
+          error: err.message
+        });
+      }
+    }
+
     await client.close();
 
     return res.json({
-        path: remotePath,
-        files: files.map(f => ({ name: f.name, type: f.type, size: f.size }))
+      results: resultados
     });
   }
-  catch(e)
-  {
-    let message = `Excepción general en servicio searchFile`;
+  catch (e) {
+    let message = `Excepción general en servicio deleteFiles: ${JSON.stringify(e)}`;
     res.status(500).json({
       error: true,
       message: message,
-      fileName_array: null,
-      contenido_array: null
+      results: null
     });
 
     return;
   }
-
-});
-
-//SERVICIO DE BUSQUEDA DE ARCHIVOS EN SERVIDOR SFPT
-app.post('/deleteFile', async (req, res) => {
-
-  const fileName = req[`body`][`fileName`];
-  const host = req[`body`][`host`];
-  const port = req[`body`][`port`];
-  const username = req[`body`][`username`];
-  const remotePath = req[`body`][`remotePath`];
-  const password = req[`body`][`password`];
-
-  console.log(`177. fileName: ${fileName} - host: ${host} - port: ${port} - username: ${username} - password: ${password} - remotePath: ${remotePath}\n`);
-  
-  const sftpConfig = {
-    host: host,
-    port: port,
-    username: username,
-    password: password,
-    algorithms: {
-      kex: [
-        "diffie-hellman-group1-sha1",
-        "ecdh-sha2-nistp256",
-        "ecdh-sha2-nistp384",
-        "ecdh-sha2-nistp521",
-        "diffie-hellman-group-exchange-sha256",
-        "diffie-hellman-group14-sha1"
-      ],
-      cipher: [
-        "3des-cbc",
-        "aes128-ctr",
-        "aes192-ctr",
-        "aes256-ctr",
-        "aes128-gcm",
-        "aes128-gcm@openssh.com",
-        "aes256-gcm",
-        "aes256-gcm@openssh.com"
-      ],
-      serverHostKey: [
-        "ssh-rsa",
-        "ecdsa-sha2-nistp256",
-        "ecdsa-sha2-nistp384",
-        "ecdsa-sha2-nistp521"
-      ],
-      hmac: [
-        "hmac-sha2-256",
-        "hmac-sha2-512",
-        "hmac-sha1"
-      ]
-    }
-  };
-
-  const conn = new Client();
-
-  try
-  {
-    await conn.connect(sftpConfig);
-
-    conn.on(`ready`, () => {
-      
-      console.log(`561. Host: ${host} - Conexión SFTP ready`);
-
-      conn.sftp((err, sftp) => {
-        if (err)
-        {
-          let message = `Host: ${host} - Error al establecer la conexión SFTP. Detalle: ${err}`;
-          console.error(message);
-          
-          res.status(500).json({
-            error: true,
-            message: message,
-            fileName: fileName,
-            fileContent: null
-          });
-
-          return;
-        }
-  
-        //Obtener lista de archivos en el directorio remoto
-        sftp.readdir(remotePath, (readdirErr, listaArchivos) => {
-          if (readdirErr)
-          {
-            let message = `Host: ${host} - Directorio: ${remotePath} - Error al leer el directorio remoto. Detalle: ${err}`;
-            console.error(message);
-
-            res.status(500).json({
-              error: true,
-              message: message,
-              fileName: fileName,
-              fileContent: null
-            });
-
-            sftp.end();
-            conn.end();
-            return;
-          }
-          
-          const nombresArchivos = listaArchivos.map((archivo) => archivo.filename);
-          console.log(`599. Host: ${host} - Directorio: ${remotePath} - Nombres de archivos encontrados: ${nombresArchivos}`);
-
-          //Busqueda de archivo especifico
-          const archivoEncontrado = listaArchivos.find((archivo) => archivo.filename === fileName);
-  
-          if (archivoEncontrado)
-          {
-            console.log(`606. Host: ${host} - Directorio: ${remotePath} - Nombre archivo: ${fileName} - Archivo encontrado: ${archivoEncontrado}`);
-
-            sftp.unlink(`${remotePath}${fileName}`, (unlinkErr) => {
-              if (unlinkErr) {
-
-                let message = `Host: ${host} - Directorio: ${remotePath} - Nombre archivo: ${fileName} - Error al intentar eliminar archivo - Detalle: ${unlinkErr}`;
-                console.log(`612. ${message}`);
-
-                res.status(500).json({
-                  error: false,
-                  message: message,
-                  fileName: fileName,
-                  eliminado: false
-                });
-    
-                sftp.end();
-                conn.end();
-                return;
-
-              }
-              else
-              {
-                
-                let message = `Host: ${host} - Directorio: ${remotePath} - Nombre archivo: ${fileName} eliminado correctamente`;
-                console.log(`630. ${message}`);
-    
-                res.status(200).json({
-                  error: false,
-                  message: message,
-                  fileName: fileName,
-                  eliminado: true
-                });
-    
-                sftp.end();
-                conn.end();
-                return;
-              }
-           });
-          }
-          else
-          {
-            let message = `Host: ${host} - Directorio: ${remotePath} - Nombre archivo: ${fileName} - Archivo no encontrado`;
-            console.log(`648. ${message}`);
-            res.status(500).json({
-              error: true,
-              message: message,
-              fileName: fileName,
-              fileContent: null
-            });
-
-            sftp.end();
-            conn.end();
-            return;
-          }
-
-        });
-
-      });
-
-    });
-
-    conn.on(`error`, (err) => {
-      
-      let message = `Host: ${host} - Conexión SFTP error - servicio deleteFile - Detalle: ${JSON.stringify(err.message)}`;
-
-      console.log(`671. ${message}`);
-
-      res.status(500).json({
-        error: true,
-        message: message,
-        fileName: fileName,
-        fileContent: null
-      });
-
-      return;
-    });
-  }
-  catch(e)
-  {
-    let message = `Excepción general en servicio deleteFile`;
-    res.status(500).json({
-      error: true,
-      message: message,
-      fileName: fileName,
-      fileContent: null
-    });
-
-    return;
-  }
-
 });
 
 //SERVICIO DESTINADO A PROBAR LA DISPONIBLIDAD DE LA APLICACION
 app.get("/", (req, res) => {
-	res.json({
-		Status: 'OK'
-	})
-}); 
-  
+  res.json({
+    Status: 'OK'
+  })
+});
+
 //INICIAR SERVIDOR
 app.listen(port, () => {
-  console.log(`Servidor escuchando en http://localhost:${port}`);
+  console.log(`438. Servidor escuchando en http://localhost:${port}`);
 });
+
+let isEmpty = (value) => {
+
+  if (value === ``)
+    return true;
+
+  if (value === null)
+    return true;
+
+  if (value === undefined)
+    return true;
+
+  if (value === `undefined`)
+    return true;
+
+  if (value === `null`)
+    return true;
+
+  return false;
+}
