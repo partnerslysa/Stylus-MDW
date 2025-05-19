@@ -180,7 +180,7 @@ app.post('/uploadFile', async (req, res) => {
 });
 
 //SERVICIO DE BUSQUEDA DE ARCHIVOS EN SERVIDOR SFPT
-app.post('/searchFile', async (req, res) => {
+app.post('/searchFileEncoded', async (req, res) => {
   const serviceName = `searchFile`;
   const host = req.body.host;
   const port = req.body.port;
@@ -292,6 +292,118 @@ app.post('/searchFile', async (req, res) => {
   }
 });
 
+//SERVICIO DE BUSQUEDA DE ARCHIVOS EN SERVIDOR SFPT
+app.post('/searchFile', async (req, res) => {
+  const serviceName = `searchFile`;
+  const host = req.body.host;
+  const port = req.body.port;
+  const username = req.body.username;
+  const password = req.body.password;
+  const filePath = req.body.filePath;
+
+  const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
+  console.log(`141. Servicio: ${serviceName} | Request Body: ${JSON.stringify(req.body)}`);
+
+  try {
+
+    if (!isEmpty(host)) {
+
+      if (!isEmpty(username)) {
+
+        if (!isEmpty(password)) {
+
+          if (!isEmpty(filePath) && filePath.length > 0) {
+
+            const client = new ftp.Client();
+            client.ftp.verbose = false;
+
+            await client.access({
+              host: host,
+              user: username,
+              password: password,
+              port: port,
+              secure: true
+            });
+
+            // Verificar tamaño
+            const fileSize = await client.size(filePath);
+            console.log(`166. Servicio: ${serviceName} | Tamaño de archivo solicitado: ${fileSize}`);
+            let fileSizeMb = parseFloat((fileSize / (1024 * 1024)).toFixed(2));
+
+            if (fileSize > MAX_SIZE_BYTES) {
+              await client.close();
+              return res.status(400).json({
+                error: true,
+                message: `El archivo excede el tamaño máximo permitido de 10MB (${fileSizeMb}MB)`
+              });
+            }
+
+            // Leer contenido
+            const writableStream = new require('stream').Writable();
+            const chunks = [];
+            writableStream._write = (chunk, encoding, done) => {
+              chunks.push(chunk);
+              done();
+            };
+
+            await client.downloadTo(writableStream, filePath);
+            const contentBuffer = Buffer.concat(chunks);
+            //const compressed = zlib.gzipSync(contentBuffer);
+            const encodedFileContent = contentBuffer.toString('utf-8'); // listo para enviar por JSON
+
+            await client.close();
+            console.log(`190. Servicio: ${serviceName} | Ejecucion Exitosa`);
+
+            return res.json({
+              error: false,
+              message: `Servicio Ejecutado con Exito`,
+              path: filePath,
+              size: fileSizeMb,
+              size_string: `${fileSizeMb}MB`,
+              content: encodedFileContent
+            });
+
+          }
+          else {
+            res.status(400).json({
+              error: true,
+              message: `Informacion de archivos incorrecta o incompleta`,
+              content: null
+            });
+          }
+        }
+        else {
+          res.status(400).json({
+            error: true,
+            message: `Contraseña invalida o vacia`,
+            content: null
+          });
+        }
+      }
+      else {
+        res.status(400).json({
+          error: true,
+          message: `Usuario invalido o vacio`,
+          content: null
+        });
+      }
+    }
+    else {
+      res.status(400).json({
+        error: true,
+        message: `URL de host invalida o vacio`,
+        content: null
+      });
+    }
+  }
+  catch (er) {
+    res.status(500).json({
+      error: true,
+      message: `Excepción general en servicio moveFiles: ${JSON.stringify(er)}`,
+      content: null
+    });
+  }
+});
 
 //SERVICIO DE BUSQUEDA Y MOVIMIENTO DE ARCHIVOS EN SERVIDOR SFPT
 app.post('/moveFiles', async (req, res) => {
