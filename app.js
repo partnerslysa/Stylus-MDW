@@ -106,7 +106,7 @@ app.post('/uploadFile', async (req, res) => {
 
                 //Armado de rutas
                 const localPath = `ArchivosTXT/${fileName}`;
-                const remotePath = `${remotePath2}/${fileName}`;
+                const remotePath = `${remotePath2}${fileName}`;
                 require('fs').writeFileSync(localPath, respuesta.data, 'utf-8');
                 console.log(`111. Host: ${host} - localPath: ${localPath} - remotePath: ${remotePath}\n`);
                 await client.uploadFrom(localPath, remotePath);
